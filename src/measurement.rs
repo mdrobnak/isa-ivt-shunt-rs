@@ -89,12 +89,12 @@ impl ISAMeasurements {
             // Mux ID 1 is for Voltage 1.
             if self.settings.voltage_1.data_format == byteordered::Endianness::Big {
                 // 0x01_05_00_00_88_b8 == 35 mV --- 500 mV -> 0x7A120 = 500,000
-                // Value / 1000000 = Volts
+                // Value / 1000 = Volts
                 let mut word: u32 = (data[2] as u32) << 24
                     | (data[3] as u32) << 16
                     | (data[4] as u32) << 8
                     | data[5] as u32;
-                self.voltage_1 = word as f32 / 1_000_000.0;
+                self.voltage_1 = word as f32 / 1_000.0;
             }
         }
     }
