@@ -33,7 +33,7 @@ impl ISAMeasurements {
         }
     }
     pub fn set_error_status(&mut self, mut error_value: u8) {
-        error_value = (error_value >> 4);
+        error_value = error_value >> 4;
         if (error_value & 0x08) == 0x08 {
             self.system_error = true;
             return;
@@ -51,58 +51,91 @@ impl ISAMeasurements {
             self.any_measurement_error = false;
         }
     }
+    fn decode_data(
+        &mut self,
+        data: &[u8; 6],
+        data_format: byteordered::Endianness,
+        divisor: f32,
+    ) -> f32 {
+        if data_format == byteordered::Endianness::Big {
+            // 0x01_05_00_00_88_b8 == 35,000 mV or 35V
+            // Value / 1000 = Volts
+            let word: u32 = (data[2] as u32) << 24
+                | (data[3] as u32) << 16
+                | (data[4] as u32) << 8
+                | data[5] as u32;
+            return word as f32 / divisor;
+        } else {
+            // 0x01_05_00_00_88_b8 == 35,000 mV or 35V
+            // Value / 1000 = Volts
+            let word: u32 = (data[2] as u32)
+                | (data[3] as u32) << 8
+                | (data[4] as u32) << 16
+                | (data[5] as u32) << 24;
+            return word as f32 / divisor;
+        }
+    }
     pub fn process_data(&mut self, id: u16, data: &[u8; 6]) {
         if id == 0x511 {
             // Respnse from config
             self.update_config();
-        } else if id == self.settings.current.can_id {
+        } else if id == self.settings.current.can_id
+            || id == self.settings.voltage_1.can_id
+            || id == self.settings.voltage_2.can_id
+            || id == self.settings.voltage_3.can_id
+        {
             // Check the error states
             self.set_error_status(data[1]);
-            self.update_current();
-            println!("Got current!");
-        } else if id == self.settings.voltage_1.can_id {
-            // Check the error states
-            self.set_error_status(data[1]);
-            self.update_voltage_1(&data);
-            println!("Got vol 1!");
-        } else if id == self.settings.voltage_2.can_id {
-            // Check the error states
-            self.set_error_status(data[1]);
-            self.update_voltage_2();
-            println!("Got vol 2!");
-        } else if id == self.settings.voltage_3.can_id {
-            // Check the error states
-            self.set_error_status(data[1]);
-            self.update_voltage_3();
-            println!("Got vol 3!");
+            // Figure out where it belongs
+            self.update_data(&data);
         }
     }
     fn update_config(&mut self) {
         self.settings.current.can_id = 0x999;
     }
-    fn update_current(&mut self) {
-        self.current = 99.9;
-    }
-    fn update_voltage_1(&mut self, data: &[u8; 6]) {
-        self.voltage_1 = 120.9; // dummy value if no data given.
-        if data[0] == 0x01 {
-            // Mux ID 1 is for Voltage 1.
-            if self.settings.voltage_1.data_format == byteordered::Endianness::Big {
-                // 0x01_05_00_00_88_b8 == 35 mV --- 500 mV -> 0x7A120 = 500,000
-                // Value / 1000 = Volts
-                let mut word: u32 = (data[2] as u32) << 24
-                    | (data[3] as u32) << 16
-                    | (data[4] as u32) << 8
-                    | data[5] as u32;
-                self.voltage_1 = word as f32 / 1_000.0;
+    fn update_data(&mut self, data: &[u8; 6]) {
+        /// MuxID Item              Unit   Divisor
+        /// 0x00  IVT_Msg_Result_I  1 mA   1000
+        /// 0x01  IVT_Msg_Result_U1 1 mV   1000
+        /// 0x02  IVT_Msg_Result_U2 1 mV   1000
+        /// 0x03  IVT_Msg_Result_U3 1 mV   1000
+        /// 0x04  IVT_Msg_Result_T  0.1 °C 10
+        /// 0x05  IVT_Msg_Result_W  1 W    1
+        /// 0x06  IVT_Msg_Result_As 1 As   1
+        /// 0x07  IVT_Msg_Result_Wh 1 W    1
+        // data[0] is the aforementioned MuxID
+        match data[0] {
+            0 => {
+                self.current = self.decode_data(&data, self.settings.current.data_format, 1_000.0);
             }
+            1 => {
+                self.voltage_1 =
+                    self.decode_data(&data, self.settings.voltage_1.data_format, 1_000.0);
+            }
+            2 => {
+                self.voltage_2 =
+                    self.decode_data(&data, self.settings.voltage_2.data_format, 1_000.0);
+            }
+            3 => {
+                self.voltage_3 =
+                    self.decode_data(&data, self.settings.voltage_3.data_format, 1_000.0);
+            }
+            4 => {
+                self.temperature =
+                    self.decode_data(&data, self.settings.temperature.data_format, 10.0);
+            }
+            5 => {
+                self.power = self.decode_data(&data, self.settings.power.data_format, 1.0);
+            }
+            6 => {
+                self.current_counter =
+                    self.decode_data(&data, self.settings.current_counter.data_format, 1.0);
+            }
+            7 => {
+                self.energy_counter =
+                    self.decode_data(&data, self.settings.energy_counter.data_format, 1.0);
+            }
+            _ => {}
         }
-    }
-
-    fn update_voltage_2(&mut self) {
-        self.voltage_2 = 240.9;
-    }
-    fn update_voltage_3(&mut self) {
-        self.voltage_3 = 280.9;
     }
 }
