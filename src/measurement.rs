@@ -1,4 +1,5 @@
 use crate::config::ISAConfig;
+use crate::Endianness;
 pub struct ISAMeasurements {
     pub any_measurement_error: bool,
     pub current: f32,
@@ -13,6 +14,7 @@ pub struct ISAMeasurements {
     pub settings: ISAConfig,
     pub system_error: bool,
 }
+
 
 impl ISAMeasurements {
     pub fn new(settings: ISAConfig) -> Self {
@@ -54,10 +56,10 @@ impl ISAMeasurements {
     fn decode_data(
         &mut self,
         data: &[u8; 6],
-        data_format: byteordered::Endianness,
+        data_format: Endianness,
         divisor: f32,
     ) -> f32 {
-        if data_format == byteordered::Endianness::Big {
+        if data_format == Endianness::Big {
             // 0x01_05_00_00_88_b8 == 35,000 mV or 35V
             // Value / 1000 = Volts
             let word: u32 = (data[2] as u32) << 24

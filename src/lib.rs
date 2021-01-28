@@ -40,6 +40,15 @@ pub mod measurement;
 /// 0xBn            Responses on Set and Get Comma
 /// 0xFF            Response on not allowed message
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
+pub enum Endianness {
+    /// Little Endian
+    Little,
+    /// Big Endian
+    Big,
+}
+
+
 #[cfg(test)]
 mod tests {
     #[test]
