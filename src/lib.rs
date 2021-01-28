@@ -1,4 +1,4 @@
-//#![no_std]
+#![no_std]
 pub mod config;
 pub mod measurement;
 
