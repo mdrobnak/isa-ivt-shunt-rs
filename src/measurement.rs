@@ -15,7 +15,6 @@ pub struct ISAMeasurements {
     pub system_error: bool,
 }
 
-
 impl ISAMeasurements {
     pub fn new(settings: ISAConfig) -> Self {
         // return self
@@ -53,35 +52,26 @@ impl ISAMeasurements {
             self.any_measurement_error = false;
         }
     }
-    fn decode_data(
-        &mut self,
-        data: &[u8; 6],
-        data_format: Endianness,
-        divisor: f32,
-    ) -> f32 {
+    fn decode_data(&mut self, data: &[u8; 6], data_format: Endianness, divisor: f32) -> f32 {
         if data_format == Endianness::Big {
             // 0x01_05_00_00_88_b8 == 35,000 mV or 35V
             // Value / 1000 = Volts
-            let word: u32 = (data[2] as u32) << 24
-                | (data[3] as u32) << 16
-                | (data[4] as u32) << 8
-                | data[5] as u32;
+            let word: i32 = i32::from_be_bytes([data[2], data[3], data[4], data[5]]);
             return word as f32 / divisor;
         } else {
-            // 0x01_05_00_00_88_b8 == 35,000 mV or 35V
+            // 0x01_05_b8_88_00_00 == 35,000 mV or 35V
             // Value / 1000 = Volts
-            let word: u32 = (data[2] as u32)
-                | (data[3] as u32) << 8
-                | (data[4] as u32) << 16
-                | (data[5] as u32) << 24;
+            let word: i32 = i32::from_le_bytes([data[2], data[3], data[4], data[5]]);
             return word as f32 / divisor;
         }
     }
+    pub fn process_config_response(&mut self, data: &[u8; 8]) {
+        // Respnse from config ID (0x511)
+        self.update_config();
+    }
+
     pub fn process_data(&mut self, id: u16, data: &[u8; 6]) {
-        if id == 0x511 {
-            // Respnse from config
-            self.update_config();
-        } else if id == self.settings.current.can_id
+        if id == self.settings.current.can_id
             || id == self.settings.voltage_1.can_id
             || id == self.settings.voltage_2.can_id
             || id == self.settings.voltage_3.can_id

@@ -48,7 +48,6 @@ pub enum Endianness {
     Big,
 }
 
-
 #[cfg(test)]
 mod tests {
     #[test]
