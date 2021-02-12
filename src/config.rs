@@ -28,22 +28,22 @@ impl ISAConfig {
             current: ISAMeasurementConfig {
                 can_id: 0x521,
                 data_format: Endianness::Big,
-                sampling_mode: ISASampleModeEnum::Disabled,
+                sampling_mode: ISASampleModeEnum::Cyclical,
             },
             voltage_1: ISAMeasurementConfig {
                 can_id: 0x522,
                 data_format: Endianness::Big,
-                sampling_mode: ISASampleModeEnum::Disabled,
+                sampling_mode: ISASampleModeEnum::Cyclical,
             },
             voltage_2: ISAMeasurementConfig {
                 can_id: 0x523,
                 data_format: Endianness::Big,
-                sampling_mode: ISASampleModeEnum::Disabled,
+                sampling_mode: ISASampleModeEnum::Cyclical,
             },
             voltage_3: ISAMeasurementConfig {
                 can_id: 0x524,
                 data_format: Endianness::Big,
-                sampling_mode: ISASampleModeEnum::Disabled,
+                sampling_mode: ISASampleModeEnum::Cyclical,
             },
             temperature: ISAMeasurementConfig {
                 can_id: 0x525,

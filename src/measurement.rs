@@ -10,7 +10,10 @@ pub struct ISAMeasurements {
     pub power: f32,
     pub current_counter: f32,
     pub energy_counter: f32,
+    pub overcurrent_flag: bool,
     pub precision_error: bool,
+    pub sensor_alive: bool,
+    pub sensor_alive_counter: u8,
     pub settings: ISAConfig,
     pub system_error: bool,
 }
@@ -28,12 +31,37 @@ impl ISAMeasurements {
             power: 0.0,
             current_counter: 0.0,
             energy_counter: 0.0,
+            overcurrent_flag: false,
             precision_error: false,
+            sensor_alive: false,
+            sensor_alive_counter: 0,
             settings: settings,
             system_error: false,
         }
     }
     pub fn set_error_status(&mut self, mut error_value: u8) {
+        /// Lower nibble: Message Counter
+        /// Upper nibble: Error bits
+        /// bit 0: set if OCS is true
+        /// bit 1: set if
+        /// - this result is out of (spec-) range,
+        /// - this result has reduced precision
+        /// - this result has a measurement-error
+        /// bit 2: set if
+        /// - any result has a measurement-error
+        /// bit 3: set if
+        /// - system-error, sensor functionality is not ensured!
+
+
+        // Test alive first. Counter is 0-15
+        // Not sure if there's a better way.
+        if ((error & 0x0F) % 16) != (sensor_alive_counter % 16) {
+            self.sensor_alive = true;
+            self.sensor_alive_counter = (error & 0x0F);
+        } else {
+            self.sensor_alive = false;
+            self.sensor_alive_counter = (error & 0x0F);
+        }
         error_value = error_value >> 4;
         if (error_value & 0x08) == 0x08 {
             self.system_error = true;
@@ -46,10 +74,15 @@ impl ISAMeasurements {
         } else {
             self.any_measurement_error = false;
         }
-        if (error_value & 0x04) == 0x04 {
-            self.any_measurement_error = true;
+        if (error_value & 0x02) == 0x02 {
+            self.precision_error = true;
         } else {
-            self.any_measurement_error = false;
+            self.precision_error = false;
+        }
+        if (error_value & 0x01) == 0x01 {
+            self.overcurrent_flag = true;
+        } else {
+            self.overcurrent_flag = false;
         }
     }
     fn decode_data(&mut self, data: &[u8; 6], data_format: Endianness, divisor: f32) -> f32 {
@@ -75,6 +108,10 @@ impl ISAMeasurements {
             || id == self.settings.voltage_1.can_id
             || id == self.settings.voltage_2.can_id
             || id == self.settings.voltage_3.can_id
+            || id == self.settings.temperature.can_id
+            || id == self.settings.power.can_id
+            || id == self.settings.current_counter.can_id
+            || id == self.settings.energy_counter.can_id
         {
             // Check the error states
             self.set_error_status(data[1]);
@@ -95,6 +132,8 @@ impl ISAMeasurements {
         /// 0x05  IVT_Msg_Result_W  1 W    1
         /// 0x06  IVT_Msg_Result_As 1 As   1
         /// 0x07  IVT_Msg_Result_Wh 1 W    1
+
+
         // data[0] is the aforementioned MuxID
         match data[0] {
             0 => {
